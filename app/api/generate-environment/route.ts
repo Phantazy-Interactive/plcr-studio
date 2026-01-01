@@ -37,18 +37,16 @@ The user wants to generate an environment/scene image and provided this basic de
 
 Transform this into a highly detailed, photorealistic prompt following these guidelines:
 
-1. **Aspect Ratio**: The image MUST be in 16:9 widescreen format (landscape orientation)
-2. **Subject & Setting**: Expand the description with specific details about the scene, objects, and environment
-3. **Lighting**: Describe the lighting in detail (golden hour, soft natural light, dramatic shadows, specific light sources, etc.)
-4. **Camera/Lens Details**: Include photography terms like focal length (e.g., "85mm portrait lens", "24mm wide-angle", "50mm prime"), depth of field, bokeh effects
-5. **Textures & Materials**: Describe surfaces, materials, and textures in detail
-6. **Atmosphere & Mood**: Set the emotional tone and atmosphere
-7. **Composition**: Mention composition elements (rule of thirds, leading lines, etc.) suited for widescreen format
-8. **Color Palette**: If relevant, describe the color scheme
-9. **Quality**: Emphasize high resolution, sharp detail, and maximum quality
+1. **Subject & Setting**: Expand the description with specific details about the scene, objects, and environment
+2. **Lighting**: Describe the lighting in detail (golden hour, soft natural light, dramatic shadows, specific light sources, etc.)
+3. **Camera/Lens Details**: Include photography terms like focal length (e.g., "85mm portrait lens", "24mm wide-angle", "50mm prime"), depth of field, bokeh effects
+4. **Textures & Materials**: Describe surfaces, materials, and textures in detail
+5. **Atmosphere & Mood**: Set the emotional tone and atmosphere
+6. **Composition**: Mention composition elements (rule of thirds, leading lines, etc.) suited for widescreen format
+7. **Color Palette**: If relevant, describe the color scheme
+8. **Quality**: Emphasize high resolution, sharp detail, and maximum quality
 
 Important:
-- ALWAYS specify "16:9 aspect ratio" or "widescreen format" in the prompt
 - Start with "A photorealistic, high-resolution" or similar
 - Be extremely descriptive and specific
 - Use professional photography terminology
@@ -57,7 +55,7 @@ Important:
 - Output ONLY the enhanced prompt, no explanations
 
 Example of a good photorealistic prompt:
-"A photorealistic, high-resolution 16:9 widescreen image of an elderly Japanese ceramicist with deep, sun-etched wrinkles and a warm, knowing smile. He is carefully inspecting a freshly glazed tea bowl. The setting is his rustic, sun-drenched workshop with pottery wheels and shelves of clay pots in the background. The scene is illuminated by soft, golden hour light streaming through a window, highlighting the fine texture of the clay and the fabric of his apron. Captured with an 85mm portrait lens at f/2.8, resulting in a soft, blurred background (bokeh). The overall mood is serene and masterful. Ultra-sharp details, professional photography quality."
+"A photorealistic, high-resolution image of an elderly Japanese ceramicist with deep, sun-etched wrinkles and a warm, knowing smile. He is carefully inspecting a freshly glazed tea bowl. The setting is his rustic, sun-drenched workshop with pottery wheels and shelves of clay pots in the background. The scene is illuminated by soft, golden hour light streaming through a window, highlighting the fine texture of the clay and the fabric of his apron. Captured with an 85mm portrait lens at f/2.8, resulting in a soft, blurred background (bokeh). The overall mood is serene and masterful. Ultra-sharp details, professional photography quality."
 
 Now create an enhanced photorealistic prompt based on the user's description:`;
 
