@@ -117,8 +117,8 @@ export default function EnhancedExcalidrawCanvas({
           y: 50,
           strokeColor: "#1971c2", // Blue
           backgroundColor: "transparent",
-          width: 800,
-          height: 600,
+          width: 2400,
+          height: 1800,
           seed: Math.floor(Math.random() * 1000000),
           groupIds: [],
           frameId: null,
@@ -143,12 +143,12 @@ export default function EnhancedExcalidrawCanvas({
           roughness: 0,
           opacity: 100,
           angle: 0,
-          x: 900,
+          x: 2550,
           y: 50,
           strokeColor: "#9c36b5", // Purple
           backgroundColor: "transparent",
-          width: 800,
-          height: 600,
+          width: 2400,
+          height: 1800,
           seed: Math.floor(Math.random() * 1000000),
           groupIds: [],
           frameId: null,
@@ -173,12 +173,12 @@ export default function EnhancedExcalidrawCanvas({
           roughness: 0,
           opacity: 100,
           angle: 0,
-          x: 1750,
+          x: 5050,
           y: 50,
           strokeColor: "#2f9e44", // Green
           backgroundColor: "transparent",
-          width: 800,
-          height: 600,
+          width: 2400,
+          height: 1800,
           seed: Math.floor(Math.random() * 1000000),
           groupIds: [],
           frameId: null,
@@ -193,6 +193,30 @@ export default function EnhancedExcalidrawCanvas({
         api.updateScene({
           elements: [envFrame, productFrame, generatedFrame],
         });
+
+        // Wait for component to fully mount before centering
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            if (api && typeof api.scrollToContent === 'function') {
+              try {
+                const currentElements = api.getSceneElements();
+                const frames = currentElements.filter((el: any) =>
+                  el.id === 'frame-environment-static' ||
+                  el.id === 'frame-product-static' ||
+                  el.id === 'frame-generated-static'
+                );
+                if (frames.length === 3) {
+                  api.scrollToContent(frames, {
+                    fitToContent: true,
+                    animate: false,
+                  });
+                }
+              } catch (error) {
+                // Ignore if not ready
+              }
+            }
+          });
+        }, 1000);
       }
     }, 100);
   }, [onExcalidrawAPIReady]);
@@ -237,8 +261,8 @@ export default function EnhancedExcalidrawCanvas({
         throw new Error('Image data not found');
       }
 
-      // Call iterate-image API with just the selected image and prompt
-      const response = await fetch('/api/iterate-image', {
+      // Call generate-improvement API with just the selected image and prompt
+      const response = await fetch('/api/generate-improvement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -288,17 +312,43 @@ export default function EnhancedExcalidrawCanvas({
           }
         ]);
 
-        // Get current elements to position new image to the right
+        // Get current elements to position new image in Generated frame
         const currentElements = excalidrawAPIRef.current.getSceneElements();
-        let maxX = 0;
-        currentElements.forEach((el: any) => {
-          if (el.type === 'image' && !el.isDeleted) {
-            const rightEdge = el.x + el.width;
-            if (rightEdge > maxX) maxX = rightEdge;
-          }
-        });
+        const generatedFrame = currentElements.find((el: any) => el.id === 'frame-generated-static');
 
-        const xPosition = maxX + 100; // 100px gap
+        let xPosition = 0;
+        let yPosition = 0;
+        let targetFrameId = null;
+
+        if (generatedFrame) {
+          // Frame dimensions
+          const frameWidth = 2400;
+          const frameHeight = 1800;
+          const framePadding = 20;
+
+          // Scale image to fit inside frame with padding, but make it smaller (40% of frame)
+          const maxWidth = (frameWidth - framePadding * 2) * 0.4;
+          const maxHeight = (frameHeight - framePadding * 2) * 0.4;
+
+          const scale = Math.min(maxWidth / displayWidth, maxHeight / displayHeight);
+          displayWidth = Math.floor(displayWidth * scale);
+          displayHeight = Math.floor(displayHeight * scale);
+
+          // Center image in frame
+          xPosition = generatedFrame.x + (frameWidth - displayWidth) / 2;
+          yPosition = generatedFrame.y + (frameHeight - displayHeight) / 2;
+          targetFrameId = generatedFrame.id;
+        } else {
+          // Fallback: position to the right of existing content
+          let maxX = 0;
+          currentElements.forEach((el: any) => {
+            if (el.type === 'image' && !el.isDeleted) {
+              const rightEdge = el.x + el.width;
+              if (rightEdge > maxX) maxX = rightEdge;
+            }
+          });
+          xPosition = maxX + 100; // 100px gap
+        }
 
         // Create image element
         const elementId = `iterated-element-${Date.now()}`;
@@ -315,14 +365,14 @@ export default function EnhancedExcalidrawCanvas({
           opacity: 100,
           angle: 0,
           x: xPosition,
-          y: 0,
+          y: yPosition,
           strokeColor: "transparent",
           backgroundColor: "transparent",
           width: displayWidth,
           height: displayHeight,
           seed: Math.floor(Math.random() * 1000000),
           groupIds: [],
-          frameId: null,
+          frameId: targetFrameId,
           roundness: null,
           boundElements: [],
           updated: Date.now(),
@@ -419,7 +469,7 @@ export default function EnhancedExcalidrawCanvas({
 
         // Create metadata for user-added image
         const metadata: ImageMetadata = {
-          id: `${imageType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `${imageType}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           type: imageType,
           dataUrl: fileData.dataURL,
           highResDataUrl: fileData.dataURL, // Store high-res for API calls
@@ -544,7 +594,7 @@ export default function EnhancedExcalidrawCanvas({
   const handleCreateAsset = useCallback(async (prompt: string) => {
     setIsCreatingAsset(true);
     try {
-      const response = await fetch('/api/generate-environment', {
+      const response = await fetch('/api/generate-asset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -558,7 +608,7 @@ export default function EnhancedExcalidrawCanvas({
       const data = await response.json();
 
       if (data.status === 'success' && data.imageUrl) {
-        // Add asset to canvas as a product image (not environment)
+        // Add asset to canvas in the Generated frame
         const img = new Image();
         img.src = data.imageUrl;
         await new Promise((resolve, reject) => {
@@ -587,13 +637,41 @@ export default function EnhancedExcalidrawCanvas({
         }]);
 
         const currentElements = excalidrawAPIRef.current.getSceneElements();
-        let maxX = 0;
-        currentElements.forEach((el: any) => {
-          if (el.type === 'image' && !el.isDeleted) {
-            const rightEdge = el.x + el.width;
-            if (rightEdge > maxX) maxX = rightEdge;
-          }
-        });
+        const generatedFrame = currentElements.find((el: any) => el.id === 'frame-generated-static');
+
+        let xPosition = 0;
+        let yPosition = 0;
+        let targetFrameId = null;
+
+        if (generatedFrame) {
+          // Frame dimensions
+          const frameWidth = 2400;
+          const frameHeight = 1800;
+          const framePadding = 20;
+
+          // Scale image to fit inside frame with padding, but make it smaller (40% of frame)
+          const maxWidth = (frameWidth - framePadding * 2) * 0.4;
+          const maxHeight = (frameHeight - framePadding * 2) * 0.4;
+
+          const scale = Math.min(maxWidth / displayWidth, maxHeight / displayHeight);
+          displayWidth = Math.floor(displayWidth * scale);
+          displayHeight = Math.floor(displayHeight * scale);
+
+          // Center image in frame
+          xPosition = generatedFrame.x + (frameWidth - displayWidth) / 2;
+          yPosition = generatedFrame.y + (frameHeight - displayHeight) / 2;
+          targetFrameId = generatedFrame.id;
+        } else {
+          // Fallback: position to the right of existing content
+          let maxX = 0;
+          currentElements.forEach((el: any) => {
+            if (el.type === 'image' && !el.isDeleted) {
+              const rightEdge = el.x + el.width;
+              if (rightEdge > maxX) maxX = rightEdge;
+            }
+          });
+          xPosition = maxX + 100;
+        }
 
         const imageElement = {
           type: "image",
@@ -607,15 +685,15 @@ export default function EnhancedExcalidrawCanvas({
           roughness: 0,
           opacity: 100,
           angle: 0,
-          x: maxX + 100,
-          y: 0,
+          x: xPosition,
+          y: yPosition,
           strokeColor: "transparent",
           backgroundColor: "transparent",
           width: displayWidth,
           height: displayHeight,
           seed: Math.floor(Math.random() * 1000000),
           groupIds: [],
-          frameId: null,
+          frameId: targetFrameId,
           roundness: null,
           boundElements: [],
           updated: Date.now(),
@@ -628,6 +706,16 @@ export default function EnhancedExcalidrawCanvas({
         excalidrawAPIRef.current.updateScene({
           elements: [...currentElements, imageElement],
         });
+
+        // Scroll to show the new image
+        setTimeout(() => {
+          if (excalidrawAPIRef.current) {
+            excalidrawAPIRef.current.scrollToContent([imageElement], {
+              fitToContent: false,
+              animate: true,
+            });
+          }
+        }, 100);
 
         setShowCreateAssetDialog(false);
       } else {
@@ -819,7 +907,7 @@ export default function EnhancedExcalidrawCanvas({
         initialData={{
           appState: {
             viewBackgroundColor: "#ffffff",
-            zoom: { value: 1 },
+            zoom: { value: 0.1 },
             currentItemStrokeColor: "#e03131", // Red color for arrows/pencil
             currentItemStrokeWidth: 4, // Thickest stroke
             currentItemFontSize: 20, // Default text size

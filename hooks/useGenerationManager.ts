@@ -149,7 +149,7 @@ export function useGenerationManager({
         aspectRatio: aspectRatio || undefined,
       };
 
-      const response = await fetch('/api/iterate', {
+      const response = await fetch('/api/generate-combination', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

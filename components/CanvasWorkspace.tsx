@@ -91,8 +91,8 @@ export default function CanvasWorkspace() {
         const envFrame = currentElements.find((el: any) => el.id === 'frame-environment-static');
         if (envFrame) {
           // Frame dimensions (matching EnhancedExcalidrawCanvas.tsx)
-          const frameWidth = 800;
-          const frameHeight = 600;
+          const frameWidth = 2400;
+          const frameHeight = 1800;
           const framePadding = 20;
 
           // Scale image to fit inside frame with padding
@@ -108,8 +108,30 @@ export default function CanvasWorkspace() {
           yPosition = envFrame.y + (frameHeight - displayHeight) / 2;
           targetFrameId = envFrame.id;
         }
+      } else if (imageType === 'generated') {
+        // For generated images, position inside the Generated frame
+        const generatedFrame = currentElements.find((el: any) => el.id === 'frame-generated-static');
+        if (generatedFrame) {
+          // Frame dimensions (matching EnhancedExcalidrawCanvas.tsx)
+          const frameWidth = 2400;
+          const frameHeight = 1800;
+          const framePadding = 20;
+
+          // Scale image to fit inside frame with padding, but make it smaller (40% of frame)
+          const maxWidth = (frameWidth - framePadding * 2) * 0.4;
+          const maxHeight = (frameHeight - framePadding * 2) * 0.4;
+
+          const scale = Math.min(maxWidth / displayWidth, maxHeight / displayHeight);
+          displayWidth = Math.floor(displayWidth * scale);
+          displayHeight = Math.floor(displayHeight * scale);
+
+          // Center image in frame
+          xPosition = generatedFrame.x + (frameWidth - displayWidth) / 2;
+          yPosition = generatedFrame.y + (frameHeight - displayHeight) / 2;
+          targetFrameId = generatedFrame.id;
+        }
       } else {
-        // For non-environment images, position to the right of existing content
+        // For non-environment/non-generated images, position to the right of existing content
         let maxX = 0;
         currentElements.forEach((el: any) => {
           if (el.type === 'image' && !el.isDeleted) {
