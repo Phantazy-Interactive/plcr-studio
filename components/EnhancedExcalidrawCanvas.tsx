@@ -130,7 +130,7 @@ export default function EnhancedExcalidrawCanvas({
           name: "Environment",
         };
 
-        // Product frame (right side) - using static ID for referencing
+        // Product frame (middle) - using static ID for referencing
         const productFrame = {
           type: "frame",
           version: 1,
@@ -160,8 +160,38 @@ export default function EnhancedExcalidrawCanvas({
           name: "Product",
         };
 
+        // Generated frame (right side) - using static ID for referencing
+        const generatedFrame = {
+          type: "frame",
+          version: 1,
+          versionNonce: Math.floor(Math.random() * 1000000),
+          isDeleted: false,
+          id: "frame-generated-static",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "dashed",
+          roughness: 0,
+          opacity: 100,
+          angle: 0,
+          x: 1750,
+          y: 50,
+          strokeColor: "#2f9e44", // Green
+          backgroundColor: "transparent",
+          width: 800,
+          height: 600,
+          seed: Math.floor(Math.random() * 1000000),
+          groupIds: [],
+          frameId: null,
+          roundness: null,
+          boundElements: [],
+          updated: Date.now(),
+          link: null,
+          locked: false,
+          name: "Generated",
+        };
+
         api.updateScene({
-          elements: [envFrame, productFrame],
+          elements: [envFrame, productFrame, generatedFrame],
         });
       }
     }, 100);
