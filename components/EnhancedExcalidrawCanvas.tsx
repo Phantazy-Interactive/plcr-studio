@@ -271,7 +271,7 @@ export default function EnhancedExcalidrawCanvas({
           image: fileData.dataURL,
           prompt,
           model: selectedModel,
-          quality: selectedQuality,
+          ...(selectedModel === "gemini-3-pro-image-preview" && { quality: selectedQuality }),
           aspectRatio: selectedAspectRatio,
         }),
       });
@@ -600,7 +600,7 @@ export default function EnhancedExcalidrawCanvas({
         body: JSON.stringify({
           prompt,
           model: selectedModel,
-          quality: selectedQuality,
+          ...(selectedModel === "gemini-3-pro-image-preview" && { quality: selectedQuality }),
           aspectRatio: selectedAspectRatio,
         }),
       });

@@ -66,7 +66,7 @@ export default function InitialEnvironmentDialog({
         body: JSON.stringify({
           prompt,
           model: selectedModel,
-          quality: selectedQuality,
+          ...(selectedModel === "gemini-3-pro-image-preview" && { quality: selectedQuality }),
           aspectRatio: selectedAspectRatio,
         }),
       });

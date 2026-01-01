@@ -145,7 +145,7 @@ export function useGenerationManager({
         prompt: "Composite the product(s) into the environment scene, matching lighting, perspective, and shadows. Make it look photorealistic.",
         isFirstIteration: true,
         model: model || "gemini-2.5-flash-image",
-        quality: quality || undefined,
+        ...(model === "gemini-3-pro-image-preview" && quality && { quality }),
         aspectRatio: aspectRatio || undefined,
       };
 
