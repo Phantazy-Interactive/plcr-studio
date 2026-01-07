@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 
 const isAuthEnabled = process.env.AUTH_ENABLED === "true";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // If auth is not enabled, allow all requests
   if (!isAuthEnabled) {
     return NextResponse.next();

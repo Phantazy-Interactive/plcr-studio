@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  // Acknowledge webpack config exists (required in Next.js 16 with Turbopack)
+  turbopack: {},
   images: {
     remotePatterns: [
       {
