@@ -15,7 +15,7 @@
     "@auth/core": "^0.41.0",
     "@excalidraw/excalidraw": "^0.18.0",
     "@google/genai": "^1.34.0",
-    "next": "^15.1.11",
+    "next": "^15.5.9",
     "next-auth": "^5.0.0-beta.30",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
