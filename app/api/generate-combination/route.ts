@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-
-// Helper function to extract base64 data from data URL
-function extractBase64Data(dataUrl: string): { mimeType: string; data: string } {
-  const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!matches) {
-    throw new Error("Invalid data URL format");
-  }
-  return {
-    mimeType: matches[1],
-    data: matches[2],
-  };
-}
+import { executeWithFallback } from "@/lib/ai-providers";
+import type { AIProviderType, ImageQuality, AspectRatio } from "@/lib/ai-providers/types";
 
 export async function POST(request: NextRequest) {
   try {
-    const { sketchImage, environmentImage, productImages, prompt, isFirstIteration, model, quality, aspectRatio } = await request.json();
+    const { sketchImage, environmentImage, productImages, prompt, isFirstIteration, provider, model, quality, aspectRatio } = await request.json();
 
     if (!sketchImage || !environmentImage || !prompt) {
       return NextResponse.json(
@@ -27,25 +16,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for API key
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          status: "error",
-          message: "GEMINI_API_KEY not configured",
-        },
-        { status: 500 }
-      );
-    }
-
-    // Initialize the Gemini API client
-    const ai = new GoogleGenAI({ apiKey });
-    const modelToUse = model || "gemini-2.5-flash-image";
-
-    // Extract base64 data from all images
-    const sketchData = extractBase64Data(sketchImage);
-    const environmentData = extractBase64Data(environmentImage);
+    // Validate provider if specified
+    const providerType = provider as AIProviderType | undefined;
 
     // Handle product images array
     const hasProductImages = isFirstIteration && productImages && productImages.length > 0;
@@ -83,120 +55,49 @@ ${productCount > 1 ? '8. Use all product reference images to understand the comp
 
 User Instructions: ${prompt}`;
 
-    // Build the contents array - new API format
-    const contents: any[] = [];
-
-    // Add system instruction as first message
-    contents.push({
-      text: "You must output a SINGLE FINAL IMAGE ONLY. Never create collages, side-by-side comparisons, or multi-panel outputs. Always remove all annotations (arrows, circles, text) from the final result.",
-    });
-
-    // Add sketch image first (for composition guidance)
-    contents.push({
-      inlineData: {
-        mimeType: sketchData.mimeType,
-        data: sketchData.data,
-      },
-    });
-
-    // Add high-res environment image (for final quality)
-    contents.push({
-      inlineData: {
-        mimeType: environmentData.mimeType,
-        data: environmentData.data,
-      },
-    });
-
-    // If first iteration, include ALL product images
-    if (hasProductImages) {
-      productImages.forEach((productImage: string) => {
-        const productImageData = extractBase64Data(productImage);
-        contents.push({
-          inlineData: {
-            mimeType: productImageData.mimeType,
-            data: productImageData.data,
+    // Generate the composite image using the provider abstraction
+    const imageResponse = await executeWithFallback(
+      providerType,
+      async (aiProvider) => {
+        return await aiProvider.composeProduct({
+          prompt: contentPrompt,
+          sketchImage,
+          environmentImage,
+          productImages: hasProductImages ? productImages : undefined,
+          config: {
+            model,
+            quality: quality as ImageQuality,
+            aspectRatio: aspectRatio as AspectRatio,
           },
+          isFirstIteration,
         });
-      });
-    }
-
-    // Add the text prompt last
-    contents.push({ text: contentPrompt });
-
-    // Build config with image settings
-    const config: any = {
-      responseModalities: ["Image"],
-    };
-
-    // Add image_config if quality or aspectRatio is provided
-    if (quality || aspectRatio) {
-      config.imageConfig = {};
-      if (quality) {
-        config.imageConfig.imageSize = quality;
       }
-      if (aspectRatio) {
-        config.imageConfig.aspectRatio = aspectRatio;
-      }
-    }
-
-    // Generate the image with new API structure
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      contents,
-      config,
-    });
-
-    // Extract the generated image
-    if (!response.candidates || response.candidates.length === 0) {
-      throw new Error("No image generated from API");
-    }
-
-    const candidate = response.candidates[0];
-
-    // Check for errors
-    if (
-      (candidate.finishReason as string) === "IMAGE_OTHER" ||
-      !candidate.content ||
-      !candidate.content.parts
-    ) {
-      const errorMessage = (candidate as any).finishMessage || "Could not generate image";
-      return NextResponse.json(
-        {
-          status: "error",
-          message: errorMessage,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Find the image in the response
-    let generatedImageData: string | null = null;
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        generatedImageData = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        break;
-      }
-    }
-
-    if (!generatedImageData) {
-      throw new Error("No image data in response");
-    }
+    );
 
     return NextResponse.json(
       {
         status: "success",
-        generatedImage: generatedImageData,
+        generatedImage: imageResponse.imageData,
       },
       { status: 200 }
     );
   } catch (error) {
     console.error("Error in iteration:", error);
+
+    // Check if all providers failed
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isProviderError = errorMessage.includes("All providers failed") ||
+                           errorMessage.includes("not configured");
+
     return NextResponse.json(
       {
         status: "error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: errorMessage,
+        suggestion: isProviderError
+          ? "Please configure at least one AI provider (GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, or REPLICATE_API_TOKEN) in your environment variables."
+          : undefined,
       },
-      { status: 500 }
+      { status: isProviderError ? 503 : 500 }
     );
   }
 }

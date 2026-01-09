@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { executeWithFallback } from "@/lib/ai-providers";
+import type { AIProviderType, ImageQuality, AspectRatio } from "@/lib/ai-providers/types";
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model, quality, aspectRatio } = await request.json();
+    const { prompt, provider, model, quality, aspectRatio } = await request.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -15,21 +16,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for API key
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          status: "error",
-          message: "GEMINI_API_KEY not configured",
-        },
-        { status: 500 }
-      );
-    }
+    // Validate provider if specified
+    const providerType = provider as AIProviderType | undefined;
 
-    // Step 1: Use Gemini text model to enhance the prompt for photorealism
-    const ai = new GoogleGenAI({ apiKey });
-
+    // Step 1: Use AI to enhance the prompt for photorealism
     const promptEnhancementRequest = `You are an expert product photographer and prompt engineer specializing in creating ultra-realistic, photorealistic image generation prompts for objects, products, and assets.
 
 The user wants to generate an asset/object/product image and provided this basic description:
@@ -59,87 +49,64 @@ Example of a good photorealistic asset prompt:
 
 Now create an enhanced photorealistic prompt based on the user's description:`;
 
-    const enhancementResponse = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
-      contents: [{ text: promptEnhancementRequest }],
-    });
+    let enhancedPrompt = prompt;
 
-    const enhancedPrompt = enhancementResponse.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
+    try {
+      const textResponse = await executeWithFallback(
+        providerType,
+        async (aiProvider) => {
+          return await aiProvider.generateText({
+            prompt: promptEnhancementRequest,
+          });
+        }
+      );
+
+      enhancedPrompt = textResponse.text.trim() || prompt;
+    } catch (error) {
+      console.warn("Failed to enhance prompt, using original:", error);
+      // Continue with original prompt if enhancement fails
+    }
 
     // Step 2: Generate the image using the enhanced prompt
-    const modelToUse = model || "gemini-2.5-flash-image";
-
-    // Build config with image settings
-    const config: any = {
-      responseModalities: ["Image"],
-    };
-
-    // Add image_config if quality or aspectRatio is provided
-    if (quality || aspectRatio) {
-      config.imageConfig = {};
-      if (quality) {
-        config.imageConfig.imageSize = quality;
+    const imageResponse = await executeWithFallback(
+      providerType,
+      async (aiProvider) => {
+        return await aiProvider.generateEnvironment({
+          prompt: enhancedPrompt,
+          config: {
+            model,
+            quality: quality as ImageQuality,
+            aspectRatio: aspectRatio as AspectRatio,
+          },
+        });
       }
-      if (aspectRatio) {
-        config.imageConfig.aspectRatio = aspectRatio;
-      }
-    }
-
-    // Generate the asset image
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      contents: [{ text: enhancedPrompt }],
-      config,
-    });
-
-    // Extract the generated image
-    if (!response.candidates || response.candidates.length === 0) {
-      throw new Error("No image generated from API");
-    }
-
-    const candidate = response.candidates[0];
-
-    // Check for errors
-    if ((candidate.finishReason as string) === "IMAGE_OTHER" || !candidate.content || !candidate.content.parts) {
-      const errorMessage = (candidate as any).finishMessage || "Could not generate asset image";
-      return NextResponse.json(
-        {
-          status: "error",
-          message: errorMessage,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Find the image in the response
-    let imageData: string | null = null;
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        imageData = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        break;
-      }
-    }
-
-    if (!imageData) {
-      throw new Error("No image data in response");
-    }
+    );
 
     return NextResponse.json(
       {
         status: "success",
-        imageUrl: imageData,
+        imageUrl: imageResponse.imageData,
         enhancedPrompt, // Return the enhanced prompt so user can see it
       },
       { status: 200 }
     );
   } catch (error) {
     console.error("Error generating asset:", error);
+
+    // Check if all providers failed
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isProviderError = errorMessage.includes("All providers failed") ||
+                           errorMessage.includes("not configured");
+
     return NextResponse.json(
       {
         status: "error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: errorMessage,
+        suggestion: isProviderError
+          ? "Please configure at least one AI provider (GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, or REPLICATE_API_TOKEN) in your environment variables."
+          : undefined,
       },
-      { status: 500 }
+      { status: isProviderError ? 503 : 500 }
     );
   }
 }

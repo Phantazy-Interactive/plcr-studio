@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ProviderSelector } from "./ProviderSelector";
+import type { AIProviderType } from "@/types/canvas";
 
 interface InitialEnvironmentDialogProps {
   isOpen: boolean;
@@ -30,6 +32,8 @@ export default function InitialEnvironmentDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [enhancedPrompt, setEnhancedPrompt] = useState<string | null>(null);
   const [showEnhancedPrompt, setShowEnhancedPrompt] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<AIProviderType | undefined>();
+  const [currentModel, setCurrentModel] = useState<string>(selectedModel);
 
   if (!isOpen) return null;
 
@@ -65,8 +69,9 @@ export default function InitialEnvironmentDialog({
         },
         body: JSON.stringify({
           prompt,
-          model: selectedModel,
-          ...(selectedModel === "gemini-3-pro-image-preview" && { quality: selectedQuality }),
+          provider: selectedProvider,
+          model: currentModel,
+          quality: selectedQuality,
           aspectRatio: selectedAspectRatio,
         }),
       });
@@ -80,7 +85,7 @@ export default function InitialEnvironmentDialog({
         }
         onEnvironmentReady(data.imageUrl);
       } else {
-        alert("Generation failed: " + (data.message || "Unknown error"));
+        alert("Generation failed: " + (data.message || "Unknown error") + (data.suggestion ? "\n\n" + data.suggestion : ""));
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_error) {
@@ -137,39 +142,36 @@ export default function InitialEnvironmentDialog({
             </button>
           </div>
 
-          {/* Model, Quality, and Aspect Ratio Selectors (only show when generate mode is active) */}
-          {mode === "generate" && onModelChange && (
+          {/* Provider, Model, Quality, and Aspect Ratio Selectors (only show when generate mode is active) */}
+          {mode === "generate" && (
             <div className="mb-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  AI Model
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => onModelChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg font-medium text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Choose model...</option>
-                  <option value="gemini-2.5-flash-image">Gemini 2.5 Flash</option>
-                  <option value="gemini-3-pro-image-preview">Gemini 3 Pro</option>
-                </select>
-              </div>
+              <ProviderSelector
+                selectedProvider={selectedProvider}
+                onProviderChange={setSelectedProvider}
+                selectedModel={currentModel}
+                onModelChange={(model) => {
+                  setCurrentModel(model);
+                  if (onModelChange) onModelChange(model);
+                }}
+                operation="generation"
+              />
 
               {onQualityChange && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Image Quality {selectedModel !== "gemini-3-pro-image-preview" && "(Pro only)"}
+                    Image Quality
                   </label>
                   <select
                     value={selectedQuality}
                     onChange={(e) => onQualityChange(e.target.value)}
-                    disabled={selectedModel !== "gemini-3-pro-image-preview"}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg font-medium text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg font-medium text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">Choose quality...</option>
+                    <option value="">Auto</option>
                     <option value="1K">1K (1024px)</option>
                     <option value="2K">2K (2048px)</option>
                     <option value="4K">4K (4096px)</option>
+                    <option value="standard">Standard</option>
+                    <option value="hd">HD</option>
                   </select>
                 </div>
               )}
@@ -182,20 +184,14 @@ export default function InitialEnvironmentDialog({
                   <select
                     value={selectedAspectRatio}
                     onChange={(e) => onAspectRatioChange(e.target.value)}
-                    disabled={!selectedModel}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg font-medium text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg font-medium text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">Choose aspect ratio...</option>
+                    <option value="">Auto</option>
                     <option value="1:1">1:1 (Square)</option>
-                    <option value="2:3">2:3 (Portrait)</option>
-                    <option value="3:2">3:2 (Landscape)</option>
                     <option value="3:4">3:4 (Portrait)</option>
                     <option value="4:3">4:3 (Landscape)</option>
-                    <option value="4:5">4:5 (Portrait)</option>
-                    <option value="5:4">5:4 (Landscape)</option>
                     <option value="9:16">9:16 (Vertical)</option>
                     <option value="16:9">16:9 (Widescreen)</option>
-                    <option value="21:9">21:9 (Ultrawide)</option>
                   </select>
                 </div>
               )}
